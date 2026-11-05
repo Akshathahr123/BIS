@@ -1,0 +1,251 @@
+# Genetic Algorithm
+
+import numpy as np
+import random
+
+
+# Objective function to maximize
+def objective_function(x):
+    return x ** 2
+
+
+# Initialize parameters
+population_size = 100
+num_generations = 50
+mutation_rate = 0.1
+crossover_rate = 0.7
+range_min = -10
+range_max = 10
+
+
+# Create initial population
+def initialize_population(size, min_val, max_val):
+    return np.random.uniform(min_val, max_val, size)
+
+
+# Evaluate fitness of the population
+def evaluate_fitness(population):
+    return np.array([objective_function(x) for x in population])
+
+
+# Selection using roulette-wheel method
+def selection(population, fitness):
+    total_fitness = np.sum(fitness)
+    probabilities = fitness / total_fitness
+
+    return population[
+        np.random.choice(
+            range(len(population)),
+            size=2,
+            p=probabilities
+        )
+    ]
+
+
+# Crossover between two parents
+def crossover(parent1, parent2):
+    if random.random() < crossover_rate:
+        return (parent1 + parent2) / 2
+    return parent1
+
+
+# Mutation of an individual
+def mutate(individual):
+    if random.random() < mutation_rate:
+        return np.random.uniform(range_min, range_max)
+    return individual
+
+
+# Genetic Algorithm function
+def genetic_algorithm():
+
+    # Step 1: Initialize population
+    population = initialize_population(
+        population_size, range_min, range_max
+    )
+
+    best_solution = None
+    best_fitness = float('-inf')
+
+    for generation in range(num_generations):
+
+        # Step 2: Evaluate fitness
+        fitness = evaluate_fitness(population)
+
+        # Track the best solution
+        best_index = np.argmax(fitness)
+        current_best_solution = population[best_index]
+        current_best_fitness = fitness[best_index]
+
+        if current_best_fitness > best_fitness:
+            best_solution = current_best_solution
+            best_fitness = current_best_fitness
+
+        # Step 3: Create new population
+        new_population = []
+
+        for _ in range(population_size):
+
+            # Select parents
+            parent1, parent2 = selection(population, fitness)
+
+            # Crossover to create offspring
+            offspring = crossover(parent1, parent2)
+
+            # Mutate offspring
+            offspring = mutate(offspring)
+
+            new_population.append(offspring)
+
+        # Step 4: Replace old population
+        population = np.array(new_population)
+
+    return best_solution, best_fitness
+
+
+# Run the Genetic Algorithm
+best_solution, best_fitness = genetic_algorithm()
+
+print(f"Best Solution Found: {best_solution}")
+print(f"Best Fitness: {best_fitness}")
+
+
+PARTICLE SWARM
+
+
+
+# Particle Swarm Optimization (PSO)
+
+import numpy as np
+import random
+
+
+# Define the optimization problem (Rastrigin Function)
+def rastrigin(x):
+    A = 10
+    return A * len(x) + sum(
+        [(xi**2 - A * np.cos(2 * np.pi * xi)) for xi in x]
+    )
+
+
+# Particle Swarm Optimization (PSO) implementation
+class Particle:
+
+    def __init__(self, dimension, lower_bound, upper_bound):
+        # Initialize the particle position and velocity randomly
+        self.position = np.random.uniform(
+            lower_bound, upper_bound, dimension
+        )
+        self.velocity = np.random.uniform(-1, 1, dimension)
+        self.best_position = np.copy(self.position)
+        self.best_value = rastrigin(self.position)
+
+    def update_velocity(self, global_best_position, w, c1, c2):
+        # Update the velocity of the particle
+        r1 = np.random.rand(len(self.position))
+        r2 = np.random.rand(len(self.position))
+
+        # Inertia term
+        inertia = w * self.velocity
+
+        # Cognitive term (individual best)
+        cognitive = c1 * r1 * (
+            self.best_position - self.position
+        )
+
+        # Social term (global best)
+        social = c2 * r2 * (
+            global_best_position - self.position
+        )
+
+        # Update velocity
+        self.velocity = inertia + cognitive + social
+
+    def update_position(self, lower_bound, upper_bound):
+        # Update the position of the particle
+        self.position = self.position + self.velocity
+
+        # Ensure the particle stays within the bounds
+        self.position = np.clip(
+            self.position, lower_bound, upper_bound
+        )
+
+    def evaluate(self):
+        # Evaluate the fitness of the particle
+        fitness = rastrigin(self.position)
+
+        # Update the particle's best position if necessary
+        if fitness < self.best_value:
+            self.best_value = fitness
+            self.best_position = np.copy(self.position)
+
+
+def particle_swarm_optimization(
+    dim,
+    lower_bound,
+    upper_bound,
+    num_particles=30,
+    max_iter=100,
+    w=0.5,
+    c1=1.5,
+    c2=1.5
+):
+    # Initialize particles
+    particles = [
+        Particle(dim, lower_bound, upper_bound)
+        for _ in range(num_particles)
+    ]
+
+    # Initialize the global best position and value
+    best_particle = min(particles, key=lambda p: p.best_value)
+    global_best_position = np.copy(best_particle.best_position)
+    global_best_value = best_particle.best_value
+
+    for i in range(max_iter):
+        # Update each particle
+        for particle in particles:
+            particle.update_velocity(
+                global_best_position, w, c1, c2
+            )
+
+            particle.update_position(lower_bound, upper_bound)
+            particle.evaluate()
+
+            # Update global best position if needed
+            if particle.best_value < global_best_value:
+                global_best_value = particle.best_value
+                global_best_position = np.copy(
+                    particle.best_position
+                )
+
+        # Print the progress
+        if (i + 1) % 10 == 0:
+            print(
+                f"Iteration {i + 1}/{max_iter} - "
+                f"Best Fitness: {global_best_value}"
+            )
+
+    return global_best_position, global_best_value
+
+
+# Set the parameters for the PSO algorithm
+dim = 2                 # Number of dimensions
+lower_bound = -5.12     # Lower bound of search space
+upper_bound = 5.12      # Upper bound of search space
+num_particles = 30      # Number of particles
+max_iter = 100          # Number of iterations
+
+# Run the PSO
+best_position, best_value = particle_swarm_optimization(
+    dim,
+    lower_bound,
+    upper_bound,
+    num_particles,
+    max_iter
+)
+
+# Output the best solution found
+print("\nBest Solution Found:")
+print("Position:", best_position)
+print("Fitness:", best_value)
+
